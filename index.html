@@ -130,16 +130,19 @@ input[type="text"] {
 .grp h3 { margin: 12px 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 
 .ex { border-top: 1px dashed var(--line); }
-.eh { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 0; color: var(--ink); }
+.erow { display: flex; align-items: center; gap: 8px; }
+.eh { all: unset; box-sizing: border-box; flex: 1; min-width: 0; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 0; color: var(--ink); }
+.mk { flex: none; padding: 6px 10px; }
+.mk[aria-pressed="true"] { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
 .eh:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
 .en { font-weight: 600; }
-.chip { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip { white-space: nowrap; font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); font-variant-numeric: tabular-nums; }
 .chip.part { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .chip.full { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
 
 .strip { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 10px; }
 .g5 { display: flex; gap: 2px; }
-.sc { width: 22px; height: 24px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; background: var(--bg); }
+.sc { min-width: 22px; padding: 0 3px; height: 24px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; background: var(--bg); }
 .sc.on { color: var(--ink); background: var(--accent-soft); border-color: var(--accent); font-weight: 500; }
 
 .edit { background: var(--bg); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
@@ -159,6 +162,7 @@ input[type="text"] {
 }
 .opt:hover { border-color: var(--muted); }
 .opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.note { margin: 0 0 10px; font-size: 12px; color: var(--muted); }
 .empty { padding: 28px 0; color: var(--muted); }
 footer { margin-top: 40px; color: var(--muted); font-size: 12px; }
 footer a { color: inherit; }
@@ -174,7 +178,7 @@ footer a { color: inherit; }
 <div class="wrap">
   <header>
     <h1>Grile UBB Cluj</h1>
-    <p class="sub">Completează grila A, B, C sau D pentru fiecare subiect de admitere sau preadmitere. Răspunsurile se salvează online pentru fiecare utilizator și se văd de pe orice dispozitiv.</p>
+    <p class="sub">Completează grila (variantele A, B, C, D, cu unul sau mai multe răspunsuri corecte) pentru fiecare subiect de admitere sau preadmitere. Răspunsurile se salvează online pentru fiecare utilizator și se văd de pe orice dispozitiv.</p>
   </header>
 
   <div id="picker">
@@ -291,6 +295,8 @@ const QUESTIONS_OVERRIDE = {};
   var SESS_ORDER = ["septembrie", "iulie", "unic", "concurs"];
   var TRACK_LABEL = { info: "Informatică", mate: "Matematică" };
   var LETTERS = ["A", "B", "C", "D"];
+  // un răspuns e un text cu literele alese, de exemplu "A" sau "AC"
+  function picked(v) { return typeof v === "string" ? LETTERS.filter(function (L) { return v.indexOf(L) >= 0; }) : []; }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function $(id) { return document.getElementById(id); }
@@ -317,14 +323,15 @@ const QUESTIONS_OVERRIDE = {};
   }
   function examState(p, ex) {
     var n = nOf(p, ex), a = (p.answers && p.answers[ex.key]) || {}, c = 0;
-    for (var i = 1; i <= n; i++) if (LETTERS.indexOf(a["q" + i]) >= 0) c++;
-    return { n: n, a: a, c: c, full: c >= n };
+    for (var i = 1; i <= n; i++) if (picked(a["q" + i]).length) c++;
+    var marked = a.done === true;   // marcată manual drept completă
+    return { n: n, a: a, c: c, marked: marked, started: c > 0 || marked, full: c >= n || marked };
   }
   function totalsFor(p) {
     var ans = 0, started = 0, full = 0;
     EXAMS.forEach(function (ex) {
       var s = examState(p, ex);
-      ans += s.c; if (s.c) started++; if (s.full) full++;
+      ans += s.c; if (s.started) started++; if (s.full) full++;
     });
     return { ans: ans, started: started, full: full };
   }
@@ -342,6 +349,10 @@ const QUESTIONS_OVERRIDE = {};
   }
   function clearExam(id, exKey) {
     var a = {}; a[exKey] = fs.deleteField();
+    fs.setDoc(ref(id), { answers: a }, { merge: true }).catch(fail);
+  }
+  function setMarked(id, exKey, on) {
+    var a = {}; a[exKey] = { done: on ? true : fs.deleteField() };
     fs.setDoc(ref(id), { answers: a }, { merge: true }).catch(fail);
   }
   function setCount(id, exKey, n) {
@@ -407,7 +418,7 @@ const QUESTIONS_OVERRIDE = {};
     for (i = 1; i <= s.n; i += 5) {
       g = "";
       for (var j = i; j < i + 5 && j <= s.n; j++) {
-        var l = s.a["q" + j], on = LETTERS.indexOf(l) >= 0;
+        var l = picked(s.a["q" + j]).join(""), on = l.length > 0;
         g += '<span class="sc' + (on ? " on" : "") + '" title="Întrebarea ' + j + '">' + (on ? l : "·") + "</span>";
       }
       out += '<span class="g5">' + g + "</span>";
@@ -419,7 +430,7 @@ const QUESTIONS_OVERRIDE = {};
     var tools = '<div class="etools"><a href="' + BASE + ex.p + '" target="_blank" rel="noopener">Subiect (PDF)</a>';
     if (ex.b) tools += '<a href="' + BASE + ex.b + '" target="_blank" rel="noopener">Barem (PDF)</a>';
     tools += '<span class="step"><button type="button" class="mini" data-act="nminus" data-ex="' + ex.key + '" aria-label="Mai puține întrebări">−</button><b>' + s.n + '</b> întrebări<button type="button" class="mini" data-act="nplus" data-ex="' + ex.key + '" aria-label="Mai multe întrebări">+</button></span>';
-    if (s.c > 0) {
+    if (s.c > 0 || s.marked) {
       if (confirmClear === ex.key) {
         tools += '<span class="conf">Ștergi răspunsurile?<button type="button" class="mini solid" data-act="clearYes" data-ex="' + ex.key + '">Da, șterge</button><button type="button" class="mini" data-act="clearNo">Anulează</button></span>';
       } else {
@@ -429,13 +440,13 @@ const QUESTIONS_OVERRIDE = {};
     tools += "</div>";
     var qs = "";
     for (var i = 1; i <= s.n; i++) {
-      var cur_ = s.a["q" + i], btns = "";
+      var cur_ = picked(s.a["q" + i]), btns = "";
       LETTERS.forEach(function (L) {
-        btns += '<button type="button" class="opt" data-act="opt" data-ex="' + ex.key + '" data-q="' + i + '" data-l="' + L + '" aria-pressed="' + (cur_ === L) + '" aria-label="Întrebarea ' + i + ', varianta ' + L + '">' + L + "</button>";
+        btns += '<button type="button" class="opt" data-act="opt" data-ex="' + ex.key + '" data-q="' + i + '" data-l="' + L + '" aria-pressed="' + (cur_.indexOf(L) >= 0) + '" aria-label="Întrebarea ' + i + ', varianta ' + L + '">' + L + "</button>";
       });
       qs += '<div class="q"><span class="qn">' + i + '</span><div class="opts" role="group" aria-label="Întrebarea ' + i + '">' + btns + "</div></div>";
     }
-    return '<div class="edit">' + tools + '<div class="qgrid">' + qs + "</div></div>";
+    return '<div class="edit">' + tools + '<p class="note">Poți alege mai multe variante la aceeași întrebare. Apasă din nou pe o literă ca să o scoți.</p><div class="qgrid">' + qs + "</div></div>";
   }
 
   function fkey(el) {
@@ -457,7 +468,7 @@ const QUESTIONS_OVERRIDE = {};
     var html = "";
     YEARS.forEach(function (y) {
       var all = EXAMS.filter(function (e) { return e.y === y && (track === "all" || e.t === track); });
-      var vis = all.filter(function (e) { return !onlyStarted || examState(p, e).c > 0; });
+      var vis = all.filter(function (e) { return !onlyStarted || examState(p, e).started; });
       if (!vis.length) return;
       var ans = 0, full = 0;
       all.forEach(function (e) { var s = examState(p, e); ans += s.c; if (s.full) full++; });
@@ -474,10 +485,11 @@ const QUESTIONS_OVERRIDE = {};
             html += '<div class="grp"><h3>' + label + "</h3>";
             rows.forEach(function (ex) {
               var st = examState(p, ex), isOpen = openExam === ex.key;
-              var cls = st.c === 0 ? "" : (st.full ? " full" : " part");
-              var txt = st.c === 0 ? "Necompletată" : (st.full ? "Completă · " + st.n + " / " + st.n : st.c + " / " + st.n);
-              html += '<div class="ex"><button type="button" class="eh" data-act="exam" data-ex="' + ex.key + '" aria-expanded="' + isOpen + '">' +
-                '<span class="en">' + TRACK_LABEL[ex.t] + '</span><span class="chip' + cls + '">' + txt + '</span><span class="chev" aria-hidden="true">▾</span></button>';
+              var cls = st.full ? " full" : (st.c > 0 ? " part" : "");
+              var txt = st.full ? (st.c >= st.n ? "Completă · " + st.n + " / " + st.n : "Marcată · " + st.c + " / " + st.n) : (st.c > 0 ? st.c + " / " + st.n : "Necompletată");
+              html += '<div class="ex"><div class="erow"><button type="button" class="eh" data-act="exam" data-ex="' + ex.key + '" aria-expanded="' + isOpen + '">' +
+                '<span class="en">' + TRACK_LABEL[ex.t] + '</span><span class="chip' + cls + '">' + txt + '</span><span class="chev" aria-hidden="true">▾</span></button>' +
+                '<button type="button" class="mini mk" data-act="mark" data-ex="' + ex.key + '" aria-pressed="' + st.marked + '" aria-label="Marchează grila ca fiind completată" title="Marchează grila ca fiind completată">' + (st.marked ? "✓ Marcată" : "Marchează") + '</button></div>';
               if (isOpen) html += editorHTML(ex, st);
               else if (st.c > 0) html += stripHTML(st);
               html += "</div>";
@@ -511,12 +523,17 @@ const QUESTIONS_OVERRIDE = {};
       openExam = openExam === exKey ? null : exKey; confirmClear = null; render();
     } else if (act === "opt") {
       var q = Number(b.getAttribute("data-q")), l = b.getAttribute("data-l");
-      var a = (p.answers && p.answers[exKey]) || {};
-      setAnswer(cur, exKey, q, a["q" + q] === l ? null : l);
+      var a = (p.answers && p.answers[exKey]) || {}, sel = picked(a["q" + q]), at = sel.indexOf(l);
+      if (at >= 0) sel.splice(at, 1); else sel.push(l);
+      var ordered = LETTERS.filter(function (L) { return sel.indexOf(L) >= 0; }).join("");
+      setAnswer(cur, exKey, q, ordered || null);
     } else if (act === "nminus" || act === "nplus") {
       var ex = EXAMS.filter(function (x) { return x.key === exKey; })[0];
       var n = Math.max(1, Math.min(100, nOf(p, ex) + (act === "nplus" ? 1 : -1)));
       setCount(cur, exKey, n);
+    } else if (act === "mark") {
+      var exm = EXAMS.filter(function (x) { return x.key === exKey; })[0];
+      setMarked(cur, exKey, !examState(p, exm).marked);
     } else if (act === "clear") { confirmClear = exKey; render(); }
     else if (act === "clearNo") { confirmClear = null; render(); }
     else if (act === "clearYes") { confirmClear = null; clearExam(cur, exKey); render(); }

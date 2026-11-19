@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grile UBB Cluj</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: user picker first; then a sticky totals bar over one card per year; each year opens to its exams (session x Info/Mate); an exam opens to an A-D answer sheet. */
+:root {
+  --bg: #f1f3f6;
+  --surface: #ffffff;
+  --ink: #111b2e;
+  --muted: #5a6578;
+  --line: #d5dbe5;
+  --accent: #c8281e;
+  --accent-soft: #fbe9e7;
+  --on-accent: #ffffff;
+  --info: #1f4fd8;
+  --ok: #1d7a46;
+  --ok-soft: #e3f3ea;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1320; --surface: #151d2e; --ink: #e8edf6; --muted: #93a0b8; --line: #27324a;
+    --accent: #ff6a5c; --accent-soft: #3a1d22; --on-accent: #1a0806; --info: #7fa2ff;
+    --ok: #5ccf8e; --ok-soft: #14301f;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-block: 0 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 860px; margin: 0 auto; }
+
+header { padding-top: 28px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 6vw, 44px); line-height: 1.05; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 8px 0 0; max-width: 60ch; }
+button { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+
+/* ---------- user picker ---------- */
+#picker { margin-top: 28px; }
+#picker h2 { font-family: var(--font-display); font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 14px; }
+.pcard { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; display: flex; flex-direction: column; min-width: 0; }
+.pick { all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 6px; padding: 14px 14px 12px; border-radius: 8px 8px 0 0; color: var(--ink); }
+.pick:hover { background: var(--accent-soft); }
+.pick:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
+.pname { font-family: var(--font-display); font-size: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.pcount { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pmeter { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.pmeter i { display: block; height: 100%; background: var(--accent); }
+.pact { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 10px 10px; border-top: 1px dashed var(--line); }
+.mini { background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 4px 10px; font-size: 12px; font-weight: 500; cursor: pointer; }
+.mini:hover { color: var(--ink); border-color: var(--muted); }
+.mini.danger:hover { color: var(--accent); border-color: var(--accent); }
+.mini.solid { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.mini.solid:hover { color: var(--on-accent); }
+.conf { padding: 10px 12px 12px; display: grid; gap: 8px; font-size: 13px; }
+.conf > div { display: flex; gap: 6px; flex-wrap: wrap; }
+.renf { padding: 12px; display: grid; gap: 8px; }
+.renf > div { display: flex; gap: 6px; flex-wrap: wrap; }
+input[type="text"] {
+  font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; min-width: 0; width: 100%;
+}
+.addf { margin-top: 22px; display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch; max-width: 460px; }
+.addf input { flex: 1 1 180px; width: auto; }
+.btn { background: var(--ink); color: var(--bg); border: 0; border-radius: 6px; padding: 8px 14px; font-weight: 600; font-size: 14px; cursor: pointer; }
+.msg { margin-top: 14px; color: var(--muted); }
+.warn { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 6px; font-size: 13px; }
+.err { color: var(--accent); font-size: 13px; margin-top: 6px; min-height: 1em; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 14px; max-width: 60ch; }
+
+/* ---------- totals bar ---------- */
+.bar {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg); padding: 14px 0 12px; margin-top: 18px; border-bottom: 1px solid var(--line);
+  display: grid; gap: 10px;
+}
+.who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.who span { font-size: 13px; color: var(--muted); }
+.who b { font-family: var(--font-display); font-size: 18px; overflow-wrap: anywhere; }
+.who .mini { margin-left: auto; }
+.totals { display: flex; align-items: baseline; gap: 6px 16px; flex-wrap: wrap; }
+.big { font-family: var(--font-mono); font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.big small { font-size: 14px; color: var(--muted); }
+.tl { font-size: 13px; color: var(--muted); }
+.tl b { font-family: var(--font-mono); font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; }
+.save { margin-left: auto; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+.meter { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.meter > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.seg button, .tog {
+  font-size: 13px; font-weight: 500; color: var(--ink); background: transparent;
+  border: 0; padding: 7px 12px; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.tog { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.tog[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+/* ---------- years ---------- */
+.yr { margin-top: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+.yh { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; padding: 14px; color: var(--ink); border-radius: 8px; }
+.yh:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
+.yy { font-family: var(--font-mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ysum { font-size: 13px; color: var(--muted); flex: 1 1 200px; }
+.ysum b { font-family: var(--font-mono); font-weight: 500; color: var(--ink); }
+.chev { margin-left: auto; color: var(--muted); font-size: 14px; transition: transform .15s ease; }
+[aria-expanded="true"] > .chev { transform: rotate(180deg); }
+.ybody { padding: 0 14px 12px; }
+.grp h3 { margin: 12px 0 4px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+.ex { border-top: 1px dashed var(--line); }
+.eh { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 0; color: var(--ink); }
+.eh:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
+.en { font-weight: 600; }
+.chip { font-family: var(--font-mono); font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip.part { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.chip.full { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+
+.strip { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 10px; }
+.g5 { display: flex; gap: 2px; }
+.sc { width: 22px; height: 24px; display: grid; place-items: center; font-family: var(--font-mono); font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; background: var(--bg); }
+.sc.on { color: var(--ink); background: var(--accent-soft); border-color: var(--accent); font-weight: 500; }
+
+.edit { background: var(--bg); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+.etools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 12px; font-size: 13px; }
+.etools a { color: var(--info); font-weight: 600; }
+.step { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
+.step b { font-family: var(--font-mono); font-weight: 500; color: var(--ink); min-width: 2ch; text-align: center; }
+.step .mini { padding: 4px 11px; font-size: 14px; }
+.etools .conf { padding: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px; }
+.q { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+.qn { font-family: var(--font-mono); font-size: 13px; width: 26px; flex: none; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.opts { display: flex; gap: 6px; flex: 1; min-width: 0; }
+.opt {
+  flex: 1; min-height: 42px; min-width: 0; font-family: var(--font-mono); font-size: 15px; font-weight: 500;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; cursor: pointer;
+}
+.opt:hover { border-color: var(--muted); }
+.opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.empty { padding: 28px 0; color: var(--muted); }
+footer { margin-top: 40px; color: var(--muted); font-size: 12px; }
+footer a { color: inherit; }
+
+@media (max-width: 520px) {
+  .save { margin-left: 0; width: 100%; }
+  .qgrid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .meter > i, .chev { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Grile UBB Cluj</h1>
+    <p class="sub">Completează grila A, B, C sau D pentru fiecare subiect de admitere sau preadmitere. Răspunsurile se salvează online pentru fiecare utilizator și se văd de pe orice dispozitiv.</p>
+  </header>
+
+  <div id="picker">
+    <h2>Alege utilizatorul</h2>
+    <div id="pbody" class="msg">Se încarcă utilizatorii…</div>
+    <form class="addf" id="addForm" hidden>
+      <input type="text" id="newName" maxlength="30" placeholder="Nume utilizator nou" autocomplete="off" aria-label="Nume utilizator nou">
+      <button type="submit" class="btn">Adaugă utilizator</button>
+    </form>
+    <div class="err" id="addErr" role="alert"></div>
+    <p class="hint">Oricine are linkul paginii poate deschide, redenumi sau șterge orice utilizator.</p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="bar">
+      <div class="who"><span>Utilizator</span><b id="whoName"></b><button type="button" class="mini" id="switchUser">Schimbă utilizatorul</button></div>
+      <div class="totals">
+        <div class="big"><span id="ansN">0</span> <small>răspunsuri date</small></div>
+        <div class="tl"><b id="startN">0</b> grile începute · <b id="fullN">0</b> completate din <b id="examN">0</b></div>
+        <div class="save" id="save" role="status"></div>
+      </div>
+      <div class="meter" aria-hidden="true"><i id="fill"></i></div>
+    </div>
+    <div class="filters">
+      <div class="seg" role="group" aria-label="Disciplină">
+        <button type="button" data-track="all" aria-pressed="true">Toate</button>
+        <button type="button" data-track="info" aria-pressed="false">Informatică</button>
+        <button type="button" data-track="mate" aria-pressed="false">Matematică</button>
+      </div>
+      <button type="button" class="tog" id="onlyStarted" aria-pressed="false">Doar începute</button>
+    </div>
+    <main id="list"></main>
+  </div>
+
+  <footer>Lista subiectelor este preluată de pe <a href="https://www.modinfo.ro/admitere.php" target="_blank" rel="noopener">modinfo.ro</a>. Pagina nu este afiliată UBB.</footer>
+</div>
+
+<script type="module">
+/* ===================================================================
+   CONFIGURARE FIREBASE: folosește aceleași valori ca la pagina precedentă
+   (Firebase console -> Project settings -> Your apps -> Web app -> Config).
+   Aceste valori nu sunt secrete; accesul îl controlează regulile Firestore.
+   =================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyB7nmyNVXDTRKwZe7Do1Cz0F6hv3lV3yLc",
+  authDomain: "grile-ubb.firebaseapp.com",
+  projectId: "grile-ubb",
+  storageBucket: "grile-ubb.firebasestorage.app",
+  messagingSenderId: "374156333991",
+  appId: "1:374156333991:web:8d0f566551640d3b44dc82"
+};
+
+/* Număr de întrebări al grilei, când nu e setat altfel.
+   Nu am putut verifica numărul real din PDF-uri, deci fiecare utilizator
+   îl poate schimba din pagină, pentru fiecare grilă (butoanele − și +).
+   Dacă îl afli, îl poți fixa pentru toți aici, de exemplu:
+   QUESTIONS_OVERRIDE = { "adm_2026_iulie_info": 30, "con_2025_concurs_mate": 20 } */
+const DEFAULT_QUESTIONS = 30;
+const QUESTIONS_OVERRIDE = {};
+
+(function () {
+  // ---- data -------------------------------------------------------------
+  var BASE = "https://www.modinfo.ro/admitere%5Ccluj%5C", M = "mate%5C";
+  var EXAMS = [];
+  function add(g, y, s, ip, mp, ib, mb) {
+    [["info", ip, ib], ["mate", mp, mb]].forEach(function (a) {
+      EXAMS.push({ key: g + "_" + y + "_" + s + "_" + a[0], g: g, y: y, s: s, t: a[0], p: a[1], b: a[2] || null });
+    });
+  }
+  function std(y, s) {
+    var tag = s ? y + "-" + s : String(y);
+    add("adm", y, s || "unic", "subiect-admitere-" + tag + "-informatica.pdf", M + "subiect-admitere-" + tag + "-matematica.pdf");
+  }
+  // Admitere licență
+  add("adm", 2026, "iulie", "2026%5CSubiect%20admitere%20Informatica%20iulie%202026%20RO.pdf", "2026%5CSubiect%20admitere%20Matematica%20iulie%202026%20RO.pdf");
+  add("adm", 2025, "septembrie", "2025%5CAdmitere%20informatica%20septembrie%202025%20RO.pdf", "2025%5CAdmitere%20matematica%20septembrie%202025%20RO.pdf");
+  add("adm", 2025, "iulie", "2025%5CAdmitere_informatica_iulie_2025_RO.pdf", "2025%5CAdmitere_matematica_iulie_2025_RO.pdf");
+  add("adm", 2024, "septembrie", "2024%5CSubiect%20informatica%20admitere%20nivel%20licenta%20FMI%20sept%202024.ro.pdf", "2024%5CSubiect%20matematica%20admitere%20nivel%20licenta%20FMI%20sept%202024.ro.pdf");
+  add("adm", 2024, "iulie", "2024%5CSubiect%20informatica%20admitere%20nivel%20licenta%20FMI%20iulie%202024.ro.pdf", "2024%5CSubiect%20matematica%20admitere%20nivel%20licenta%20FMI%20iulie%202024.ro.pdf");
+  add("adm", 2023, "septembrie", "2023%5CInformatica%20septembrie%202023%20RO.pdf", "2023%5CMatematica%20septembrie%202023%20RO.pdf");
+  add("adm", 2023, "iulie", "2023%5CInformatica%20iulie%202023%20RO.pdf", "2023%5CMatematica%20iulie%202023%20RO.pdf");
+  add("adm", 2022, "septembrie",
+    "2022%5CInformatica%20septembrie%202022%20RO.pdf", "2022%5CMatematica%20septembrie%202022%20RO.pdf",
+    "2022%5CInformatica%20raspunsuri%20%28toate%20limbile%29%20septembrie%202022.pdf", "2022%5CMatematica%20raspunsuri%20%28toate%20limbile%29%20septembrie%202022.pdf");
+  add("adm", 2022, "iulie",
+    "2022%5CInformatica%20iulie%202022%20RO.pdf", "2022%5CMatematica%20iulie%202022%20RO.pdf",
+    "2022%5CInformatica%20raspunsuri%20%28toate%20limbile%29%20iulie%202022.pdf", "2022%5CMatematica%20raspunsuri%20%28toate%20limbile%29%20iulie%202022.pdf");
+  add("adm", 2021, "septembrie", "2021%5Cinfo-septembrie.pdf", "2021%5Cmate-septembrie.pdf");
+  add("adm", 2021, "iulie", "2021%5Cinfo-iulie.pdf", "2021%5Cmate-iulie.pdf");
+  add("adm", 2019, "iulie", "subiect-admitere-2019-iulie-informatica.pdf", M + "subiect-admitere-2019-iulie-matematica.pdf");
+  std(2018, "septembrie"); std(2018, "iulie");
+  std(2017, "iulie");
+  std(2016, "iulie");
+  std(2015, "iulie"); std(2015, "septembrie");
+  std(2014, "iulie"); std(2014, "septembrie");
+  add("adm", 2013, "iulie", "subiect-admitere-2013-informatica.pdf", M + "subiect-admitere-2013-matematica.pdf");
+  std(2013, "septembrie");
+  std(2012); std(2011); std(2010);
+  // Preadmitere (concurs Mate-Info)
+  add("con", 2026, "concurs", "2026%5CSubiect%20si%20barem%20Informatica%20concurs%20Mate-Info%20UBB%202026%20RO.pdf", "2026%5CSubiect%20si%20barem%20Matematica%20concurs%20Mate-Info%20UBB%202026%20RO.pdf");
+  add("con", 2025, "concurs", "2025%5Csubiect%20Informatica%20concurs%20MateInfo%20UBB%202025%20RO.pdf", "2025%5Csubiect%20Matematica%20concurs%20MateInfo%20UBB%202025%20RO.pdf");
+  add("con", 2024, "concurs", "2024%5CSubiect%20Informatica%20Concurs%20Mate-Info%202024%20%28ro%29.pdf", "2024%5CSubiect%20Matematica%20Concurs%20Mate-Info%202024%20%28ro%29.pdf");
+  add("con", 2023, "concurs", "2023%5CSubiect%20Informatica%20Concurs%20Mate-Info%202023%20%28ro%29.pdf", "2023%5CSubiect%20Matematica%20Concurs%20Mate-Info%202023%20%28ro%29.pdf");
+  add("con", 2022, "concurs", "Subiect%20Informatica%20concurs%20Mate-Info%20UBB%20editia%202022%20RO.pdf", "Subiect%20Matematica%20concurs%20Mate-Info%20UBB%20editia%202022%20RO.pdf");
+  add("con", 2021, "concurs", "Subiect%20Informatica%20concurs%20Mate-Info%20UBB,%20editia%202021%20RO.pdf", "Subiect%20Matematica%20concurs%20Mate-Info%20UBB,%20editia%202021%20RO.pdf");
+  [2019, 2018, 2017, 2016, 2015, 2014].forEach(function (y) {
+    add("con", y, "concurs", "subiect-informatica-concurs-mate-info-ubb-ro-" + y + ".pdf", "subiect-matematica-concurs-mate-info-ubb-ro-" + y + ".pdf");
+  });
+  add("con", 2013, "concurs", "subiect-informatica-concurs-mate-info-ubb-2013.pdf", "subiect-matematica-concurs-mate-info-ubb-2013.pdf");
+
+  var YEARS = [];
+  EXAMS.forEach(function (e) { if (YEARS.indexOf(e.y) < 0) YEARS.push(e.y); });
+  YEARS.sort(function (a, b) { return b - a; });
+  var SESS_ORDER = ["septembrie", "iulie", "unic", "concurs"];
+  var TRACK_LABEL = { info: "Informatică", mate: "Matematică" };
+  var LETTERS = ["A", "B", "C", "D"];
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function $(id) { return document.getElementById(id); }
+  var listEl = $("list");
+
+  // ---- state ------------------------------------------------------------
+  var FB_VERSION = "10.12.2";
+  var fs = null, db = null, COL = "grile_users";
+  var profiles = {};          // id -> {name, created, answers:{exam:{q1:"A"}}, counts:{exam:n}}
+  var status = "loading";     // loading | ready | unconfigured | error
+  var cur = null;
+  var track = "all", onlyStarted = false;
+  var openYears = {}; openYears[YEARS[0]] = true;
+  var openExam = null, confirmClear = null;
+  var renaming = null, confirmDel = null, skippedPickerRender = false;
+  var saveErr = false, pending = false;
+
+  function sortedIds() {
+    return Object.keys(profiles).sort(function (a, b) { return (profiles[a].created - profiles[b].created) || (a < b ? -1 : 1); });
+  }
+  function newId() { return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function nOf(p, ex) {
+    return (p.counts && p.counts[ex.key]) || QUESTIONS_OVERRIDE[ex.key] || DEFAULT_QUESTIONS;
+  }
+  function examState(p, ex) {
+    var n = nOf(p, ex), a = (p.answers && p.answers[ex.key]) || {}, c = 0;
+    for (var i = 1; i <= n; i++) if (LETTERS.indexOf(a["q" + i]) >= 0) c++;
+    return { n: n, a: a, c: c, full: c >= n };
+  }
+  function totalsFor(p) {
+    var ans = 0, started = 0, full = 0;
+    EXAMS.forEach(function (ex) {
+      var s = examState(p, ex);
+      ans += s.c; if (s.c) started++; if (s.full) full++;
+    });
+    return { ans: ans, started: started, full: full };
+  }
+  function setSave() {
+    $("save").textContent = saveErr ? "Nu s-a putut salva. Încearcă din nou." : (pending ? "Se salvează…" : "Salvat online");
+  }
+  function fail() { saveErr = true; setSave(); }
+
+  // ---- writes (merge, so two devices never overwrite each other) ---------
+  function ref(id) { return fs.doc(db, COL, id); }
+  function setAnswer(id, exKey, q, letter) {
+    var o = {}; o["q" + q] = letter ? letter : fs.deleteField();
+    var a = {}; a[exKey] = o;
+    fs.setDoc(ref(id), { answers: a }, { merge: true }).catch(fail);
+  }
+  function clearExam(id, exKey) {
+    var a = {}; a[exKey] = fs.deleteField();
+    fs.setDoc(ref(id), { answers: a }, { merge: true }).catch(fail);
+  }
+  function setCount(id, exKey, n) {
+    var c = {}; c[exKey] = n;
+    fs.setDoc(ref(id), { counts: c }, { merge: true }).catch(fail);
+  }
+
+  // ---- views ------------------------------------------------------------
+  function showPicker() {
+    cur = null; openExam = null; confirmClear = null;
+    $("app").hidden = true; $("picker").hidden = false;
+    renderPicker();
+    window.scrollTo(0, 0);
+  }
+  function showApp(id) {
+    cur = id;
+    $("picker").hidden = true; $("app").hidden = false;
+    $("whoName").textContent = profiles[id].name;
+    setSave();
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function renderPicker() {
+    var body = $("pbody");
+    $("addForm").hidden = status !== "ready";
+    if (status === "unconfigured") {
+      body.className = "warn";
+      body.textContent = "Pagina nu este configurată încă. Completează valorile Firebase la începutul scriptului din index.html.";
+      return;
+    }
+    if (status === "error") {
+      body.className = "warn";
+      body.textContent = "Nu mă pot conecta la baza de date. Verifică conexiunea la internet, configurarea Firebase și regulile Firestore, apoi reîncarcă pagina.";
+      return;
+    }
+    if (status === "loading") { body.className = "msg"; body.textContent = "Se încarcă utilizatorii…"; return; }
+    var ids = sortedIds();
+    if (!ids.length) {
+      body.className = "msg";
+      body.textContent = "Nu există niciun utilizator. Adaugă primul mai jos.";
+      return;
+    }
+    body.className = "pgrid";
+    body.innerHTML = ids.map(function (id) {
+      var p = profiles[id], t = totalsFor(p);
+      if (renaming === id) {
+        return '<div class="pcard"><form class="renf" data-id="' + esc(id) + '"><input type="text" id="renInput" maxlength="30" value="' + esc(p.name) + '" aria-label="Nume nou"><div><button type="submit" class="mini solid">Salvează</button><button type="button" class="mini" data-act="renNo">Anulează</button></div></form></div>';
+      }
+      var actions;
+      if (confirmDel === id) {
+        actions = '<div class="conf">Ștergi „' + esc(p.name) + '”? Toate răspunsurile acestui utilizator se pierd pentru toți.<div><button type="button" class="mini solid" data-act="delYes" data-id="' + esc(id) + '">Da, șterge</button><button type="button" class="mini" data-act="delNo">Anulează</button></div></div>';
+      } else {
+        actions = '<div class="pact"><button type="button" class="mini" data-act="ren" data-id="' + esc(id) + '">Redenumește</button><button type="button" class="mini danger" data-act="del" data-id="' + esc(id) + '">Șterge</button></div>';
+      }
+      return '<div class="pcard"><button type="button" class="pick" data-act="pick" data-id="' + esc(id) + '"><span class="pname">' + esc(p.name) + '</span><span class="pcount">' + t.ans + ' răspunsuri · ' + t.full + ' / ' + EXAMS.length + ' grile</span><span class="pmeter"><i style="width:' + (100 * t.full / EXAMS.length) + '%"></i></span></button>' + actions + '</div>';
+    }).join("");
+    if (renaming) { var inp = $("renInput"); if (inp) { inp.focus(); inp.select(); } }
+  }
+
+  function stripHTML(s) {
+    var out = "", i, g;
+    for (i = 1; i <= s.n; i += 5) {
+      g = "";
+      for (var j = i; j < i + 5 && j <= s.n; j++) {
+        var l = s.a["q" + j], on = LETTERS.indexOf(l) >= 0;
+        g += '<span class="sc' + (on ? " on" : "") + '" title="Întrebarea ' + j + '">' + (on ? l : "·") + "</span>";
+      }
+      out += '<span class="g5">' + g + "</span>";
+    }
+    return '<div class="strip" aria-label="Grila completată">' + out + "</div>";
+  }
+
+  function editorHTML(ex, s) {
+    var tools = '<div class="etools"><a href="' + BASE + ex.p + '" target="_blank" rel="noopener">Subiect (PDF)</a>';
+    if (ex.b) tools += '<a href="' + BASE + ex.b + '" target="_blank" rel="noopener">Barem (PDF)</a>';
+    tools += '<span class="step"><button type="button" class="mini" data-act="nminus" data-ex="' + ex.key + '" aria-label="Mai puține întrebări">−</button><b>' + s.n + '</b> întrebări<button type="button" class="mini" data-act="nplus" data-ex="' + ex.key + '" aria-label="Mai multe întrebări">+</button></span>';
+    if (s.c > 0) {
+      if (confirmClear === ex.key) {
+        tools += '<span class="conf">Ștergi răspunsurile?<button type="button" class="mini solid" data-act="clearYes" data-ex="' + ex.key + '">Da, șterge</button><button type="button" class="mini" data-act="clearNo">Anulează</button></span>';
+      } else {
+        tools += '<button type="button" class="mini danger" data-act="clear" data-ex="' + ex.key + '">Șterge răspunsurile</button>';
+      }
+    }
+    tools += "</div>";
+    var qs = "";
+    for (var i = 1; i <= s.n; i++) {
+      var cur_ = s.a["q" + i], btns = "";
+      LETTERS.forEach(function (L) {
+        btns += '<button type="button" class="opt" data-act="opt" data-ex="' + ex.key + '" data-q="' + i + '" data-l="' + L + '" aria-pressed="' + (cur_ === L) + '" aria-label="Întrebarea ' + i + ', varianta ' + L + '">' + L + "</button>";
+      });
+      qs += '<div class="q"><span class="qn">' + i + '</span><div class="opts" role="group" aria-label="Întrebarea ' + i + '">' + btns + "</div></div>";
+    }
+    return '<div class="edit">' + tools + '<div class="qgrid">' + qs + "</div></div>";
+  }
+
+  function fkey(el) {
+    return ["act", "ex", "q", "l", "y"].map(function (a) { return el.getAttribute("data-" + a) || ""; }).join("|");
+  }
+
+  function render() {
+    if (!cur || !profiles[cur]) return;
+    var p = profiles[cur];
+    var ae = document.activeElement, fk = (ae && listEl.contains(ae) && ae.getAttribute("data-act")) ? fkey(ae) : null;
+
+    var t = totalsFor(p);
+    $("ansN").textContent = t.ans;
+    $("startN").textContent = t.started;
+    $("fullN").textContent = t.full;
+    $("examN").textContent = EXAMS.length;
+    $("fill").style.width = (100 * t.full / EXAMS.length) + "%";
+
+    var html = "";
+    YEARS.forEach(function (y) {
+      var all = EXAMS.filter(function (e) { return e.y === y && (track === "all" || e.t === track); });
+      var vis = all.filter(function (e) { return !onlyStarted || examState(p, e).c > 0; });
+      if (!vis.length) return;
+      var ans = 0, full = 0;
+      all.forEach(function (e) { var s = examState(p, e); ans += s.c; if (s.full) full++; });
+      var open = !!openYears[y];
+      html += '<section class="yr"><button type="button" class="yh" data-act="year" data-y="' + y + '" aria-expanded="' + open + '">' +
+        '<span class="yy">' + y + '</span><span class="ysum"><b>' + ans + '</b> răspunsuri · <b>' + full + '</b> din ' + all.length + ' grile completate</span><span class="chev" aria-hidden="true">▾</span></button>';
+      if (open) {
+        html += '<div class="ybody">';
+        SESS_ORDER.forEach(function (s) {
+          ["adm", "con"].forEach(function (g) {
+            var rows = vis.filter(function (e) { return e.s === s && e.g === g; });
+            if (!rows.length) return;
+            var label = g === "con" ? "Preadmitere (concurs Mate-Info)" : (s === "unic" ? "Admitere" : "Admitere · " + s);
+            html += '<div class="grp"><h3>' + label + "</h3>";
+            rows.forEach(function (ex) {
+              var st = examState(p, ex), isOpen = openExam === ex.key;
+              var cls = st.c === 0 ? "" : (st.full ? " full" : " part");
+              var txt = st.c === 0 ? "Necompletată" : (st.full ? "Completă · " + st.n + " / " + st.n : st.c + " / " + st.n);
+              html += '<div class="ex"><button type="button" class="eh" data-act="exam" data-ex="' + ex.key + '" aria-expanded="' + isOpen + '">' +
+                '<span class="en">' + TRACK_LABEL[ex.t] + '</span><span class="chip' + cls + '">' + txt + '</span><span class="chev" aria-hidden="true">▾</span></button>';
+              if (isOpen) html += editorHTML(ex, st);
+              else if (st.c > 0) html += stripHTML(st);
+              html += "</div>";
+            });
+            html += "</div>";
+          });
+        });
+        html += "</div>";
+      }
+      html += "</section>";
+    });
+    listEl.innerHTML = html || '<div class="empty">Nimic de arătat cu filtrele alese.</div>';
+
+    if (fk) {
+      var els = listEl.querySelectorAll("[data-act]");
+      for (var i = 0; i < els.length; i++) if (fkey(els[i]) === fk) { els[i].focus({ preventScroll: true }); break; }
+    }
+  }
+
+  // ---- events: answer sheet ----------------------------------------------
+  listEl.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]");
+    if (!b || !cur || !profiles[cur]) return;
+    var act = b.getAttribute("data-act"), exKey = b.getAttribute("data-ex"), p = profiles[cur];
+    if (act === "year") {
+      var y = b.getAttribute("data-y");
+      openYears[y] = !openYears[y];
+      if (!openYears[y] && openExam && openExam.split("_")[1] === y) openExam = null;
+      render();
+    } else if (act === "exam") {
+      openExam = openExam === exKey ? null : exKey; confirmClear = null; render();
+    } else if (act === "opt") {
+      var q = Number(b.getAttribute("data-q")), l = b.getAttribute("data-l");
+      var a = (p.answers && p.answers[exKey]) || {};
+      setAnswer(cur, exKey, q, a["q" + q] === l ? null : l);
+    } else if (act === "nminus" || act === "nplus") {
+      var ex = EXAMS.filter(function (x) { return x.key === exKey; })[0];
+      var n = Math.max(1, Math.min(100, nOf(p, ex) + (act === "nplus" ? 1 : -1)));
+      setCount(cur, exKey, n);
+    } else if (act === "clear") { confirmClear = exKey; render(); }
+    else if (act === "clearNo") { confirmClear = null; render(); }
+    else if (act === "clearYes") { confirmClear = null; clearExam(cur, exKey); render(); }
+  });
+
+  document.querySelectorAll(".seg button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      track = b.getAttribute("data-track");
+      document.querySelectorAll(".seg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      render();
+    });
+  });
+  $("onlyStarted").addEventListener("click", function () {
+    onlyStarted = !onlyStarted;
+    $("onlyStarted").setAttribute("aria-pressed", String(onlyStarted));
+    render();
+  });
+  $("switchUser").addEventListener("click", showPicker);
+
+  // ---- events: picker ---------------------------------------------------
+  $("pbody").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    var act = b.getAttribute("data-act"), id = b.getAttribute("data-id");
+    $("addErr").textContent = "";
+    if (act === "pick") { if (profiles[id]) showApp(id); }
+    else if (act === "ren") { renaming = id; confirmDel = null; renderPicker(); }
+    else if (act === "renNo") { renaming = null; renderPicker(); }
+    else if (act === "del") { confirmDel = id; renaming = null; renderPicker(); }
+    else if (act === "delNo") { confirmDel = null; renderPicker(); }
+    else if (act === "delYes") {
+      confirmDel = null;
+      if (status === "ready" && profiles[id]) {
+        fs.deleteDoc(ref(id)).catch(function () { $("addErr").textContent = "Nu am putut șterge utilizatorul. Încearcă din nou."; });
+      }
+      renderPicker();
+    }
+  });
+  $("pbody").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target.closest("form.renf");
+    if (!f) return;
+    var id = f.getAttribute("data-id"), name = $("renInput").value.trim();
+    if (!name || !profiles[id]) return;
+    fs.setDoc(ref(id), { name: name }, { merge: true }).catch(function () { $("addErr").textContent = "Nu am putut redenumi utilizatorul. Încearcă din nou."; });
+    renaming = null;
+    renderPicker();
+  });
+  $("addForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var inp = $("newName"), name = inp.value.trim();
+    $("addErr").textContent = "";
+    if (!name) { $("addErr").textContent = "Scrie un nume pentru noul utilizator."; return; }
+    if (status !== "ready") return;
+    fs.setDoc(ref(newId()), { name: name, created: Date.now(), answers: {}, counts: {} })
+      .catch(function () { $("addErr").textContent = "Nu am putut adăuga utilizatorul. Încearcă din nou."; });
+    inp.value = "";
+  });
+
+  // ---- connect ----------------------------------------------------------
+  function seedIfNew() {
+    // First visit ever: create the three starting users once.
+    return fs.getDoc(fs.doc(db, "meta", "init_grile")).then(function (m) {
+      if (m.exists()) return;
+      return Promise.all([1, 2, 3].map(function (n) {
+        return fs.setDoc(ref("user" + n), { name: "Utilizator " + n, created: n, answers: {}, counts: {} }, { merge: true });
+      })).then(function () { return fs.setDoc(fs.doc(db, "meta", "init_grile"), { at: Date.now() }); });
+    });
+  }
+
+  function connect() {
+    if (!firebaseConfig.projectId || /PASTE/.test(firebaseConfig.projectId) || /PASTE/.test(firebaseConfig.apiKey)) {
+      status = "unconfigured"; renderPicker(); return;
+    }
+    var base = "https://www.gstatic.com/firebasejs/" + FB_VERSION + "/";
+    Promise.all([import(base + "firebase-app.js"), import(base + "firebase-firestore.js")]).then(function (mods) {
+      fs = mods[1];
+      db = fs.getFirestore(mods[0].initializeApp(firebaseConfig));
+      var timer = setTimeout(function () { if (status === "loading") { status = "error"; renderPicker(); } }, 15000);
+      fs.onSnapshot(fs.query(fs.collection(db, COL), fs.orderBy("created")), function (snap) {
+        clearTimeout(timer);
+        status = "ready";
+        pending = !!(snap.metadata && snap.metadata.hasPendingWrites);
+        if (!pending) saveErr = false;
+        var next = {};
+        snap.docs.forEach(function (d) {
+          var v = d.data() || {};
+          next[d.id] = {
+            name: String(v.name || "Fără nume").slice(0, 30), created: Number(v.created) || 0,
+            answers: (v.answers && typeof v.answers === "object") ? v.answers : {},
+            counts: (v.counts && typeof v.counts === "object") ? v.counts : {}
+          };
+        });
+        profiles = next;
+        if (cur && !profiles[cur]) { showPicker(); return; }
+        if (cur) { $("whoName").textContent = profiles[cur].name; setSave(); render(); }
+        else if (renaming) { skippedPickerRender = true; }
+        else { renderPicker(); }
+      }, function () { clearTimeout(timer); status = "error"; if (!cur) renderPicker(); });
+      seedIfNew().catch(function () {});
+    }, function () { status = "error"; renderPicker(); });
+  }
+
+  renderPicker();
+  connect();
+})();
+</script>
+</body>
+</html>
